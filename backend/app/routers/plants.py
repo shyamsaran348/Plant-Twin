@@ -187,21 +187,34 @@ def water_plant(plant_id: int, db: Session = Depends(database.get_db), current_u
         current_stress = plant.plant_state.water_stress
         message = "Plant watered."
         
-        # Smart Logic: Check for Overwatering
-        if current_stress < 0.2: # Less than 20% stress means it's already hydrated
-            # Penalty!
-            plant.plant_state.health_score = max(0, plant.plant_state.health_score - 2)
-            plant.plant_state.water_stress = 0.0 # Still sets to 0
-            message = "Careful! Don't overwater. Health penalty applied (-2)."
-        elif current_stress > 0.5: # Dry
-            # Bonus!
-            plant.plant_state.health_score = min(100, plant.plant_state.health_score + 5)
-            plant.plant_state.water_stress = 0.0
-            message = "Great job! Plant refreshed. Health bonus applied (+5)."
+        # Smart Logic: Check for Overwatering via Twin Engine
+        # Fetch weather context (Mocked for now)
+        from app.services.weather_service import WeatherService
+        precip_prob = 0.0 # WeatherService.get_precip() - To be implemented
+        
+        if not TwinEngine.should_water(plant.plant_state, precip_prob):
+             # Auto-Pilot Interception (Not used in direct button click usually, but good for background tasks)
+             # For direct user action, we proceed but might warn.
+             pass
+
+        if plant.plant_state.water_stress < 0.2: # Less than 20% stress
+            # Overwatering Analysis
+            # Don't just deduct -2. Calculate impact.
+            # Increase Water Stres (Root Rot risk) instead of decreasing it!
+            plant.plant_state.water_stress = min(1.0, plant.plant_state.water_stress + 0.3) 
+            plant.plant_state.health_score = TwinEngine.calculate_health_score(plant.plant_state)
+            
+            message = "Careful! Soil is wet. Overwatering risks root rot."
         else:
-            # Normal watering
-            plant.plant_state.water_stress = 0.0
-            message = "Plant watered successfully."
+            # Proper Watering
+            # Simulate Recovery Logic (Lag)
+            plant.plant_state = TwinEngine.simulate_recovery(plant.plant_state, water_added=True)
+            # Recalculate based on new stress
+            plant.plant_state.health_score = TwinEngine.calculate_health_score(plant.plant_state)
+            
+            # Dynamic Feedback
+            gain = plant.plant_state.health_score - 0 # rough delta check needed? 
+            message = "Plant watered. Absorption in progress..."
 
         db.add(plant.plant_state)
         db.commit()

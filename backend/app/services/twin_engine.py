@@ -21,11 +21,21 @@ class TwinEngine:
         # It should be 100 * 0.5 * 0.5 = 25 health (Severe impact).
         
         # Disease is exponential (1.5 power) because it spreads.
-        health_factor = (1 - water_stress) * (1 - heat_stress) * (1 - pow(disease_risk, 1.2))
+        health_factor = (1 - water_stress) * (1 - heat_stress) * (1 - pow(disease_risk, 1.5))
         
         new_health = 100.0 * health_factor
         
         return max(0.0, new_health)
+
+    @staticmethod
+    def should_water(plant_state: PlantState, precip_probability: float) -> bool:
+        """
+        Auto-Pilot Hook: Check if we should skip watering due to rain.
+        """
+        if precip_probability > 0.5:
+             # If >50% chance of rain, skip watering to prevent root rot
+             return False
+        return True
 
     @staticmethod
     def update_after_disease_prediction(state: PlantState, confidence: float, disease_class: str) -> PlantState:
