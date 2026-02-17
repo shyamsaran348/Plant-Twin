@@ -4,7 +4,6 @@ import '../theme/app_theme.dart';
 
 class PlantCard extends StatelessWidget {
   final Plant plant;
-  // We can pass the image URL directly if needed, or just use the plant object
   final String? imageUrl;
 
   const PlantCard({
@@ -16,130 +15,126 @@ class PlantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final health = plant.plantState?.healthScore ?? 100.0;
-    final waterStress = plant.plantState?.waterStress ?? 0.0;
-    final diseaseRisk = plant.plantState?.diseaseRiskIndex ?? 0.0;
-
-    Color healthColor = health > 80 ? AppTheme.primaryGreen : (health > 50 ? Colors.orange : Colors.red);
+    
+    // Determine status color
+    Color statusColor = AppTheme.primaryGreen;
+    String statusText = "Healthy";
+    if (health < 50) {
+      statusColor = Colors.red;
+      statusText = "Critical";
+    } else if (health < 80) {
+      statusColor = Colors.orange;
+      statusText = "Attention";
+    }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.blueGrey.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            // Left: Image or Placeholder
-            Container(
-              width: 100,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                image: imageUrl != null 
-                  ? DecorationImage(
-                      image: NetworkImage(imageUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-              ),
-              child: imageUrl == null 
-                  ? Icon(Icons.local_florist, size: 40, color: Colors.green[300]) 
-                  : null,
-            ),
-            
-            // Right: Info & Stats
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      plant.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      plant.species,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Stats Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildStatBadge(
-                            context, 
-                            "${health.toInt()}%", 
-                            Icons.favorite, 
-                            healthColor
-                        ),
-                        if (waterStress > 0.5)
-                          _buildStatBadge(
-                            context, 
-                            "Thirsty", 
-                            Icons.water_drop, 
-                            Colors.blue
-                          ),
-                        if (diseaseRisk > 0.5)
-                           _buildStatBadge(
-                            context, 
-                            "Risk", 
-                            Icons.warning, 
-                            Colors.orange
-                          ),
-                      ],
-                    ),
-                  ],
+            // 1. Plant Image (Larger, Rounded)
+            Hero(
+              tag: "plant_${plant.id}",
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.green.shade50,
+                  image: imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
+                child: imageUrl == null
+                    ? Icon(Icons.park, size: 40, color: Colors.green.shade200)
+                    : null,
               ),
             ),
             
-            // Far Right: Arrow
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
-              child: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            const SizedBox(width: 16),
+            
+            // 2. Info Column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    plant.name,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    plant.species,
+                    style: TextStyle(fontSize: 14, color: Colors.blueGrey.shade400, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 3. Stats Row (Badges)
+                  Row(
+                    children: [
+                      _statusBadge(statusText, statusColor),
+                      const SizedBox(width: 8),
+                      if ((plant.plantState?.waterStress ?? 0) > 0.5)
+                        _iconBadge(Icons.water_drop, Colors.blue),
+                    ],
+                  ),
+                ],
+              ),
             ),
+
+            // 4. Action Arrow
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+            ),
+            const SizedBox(width: 8),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatBadge(BuildContext context, String text, IconData icon, Color color) {
+  Widget _statusBadge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
       ),
+    );
+  }
+
+  Widget _iconBadge(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 14, color: color),
     );
   }
 }

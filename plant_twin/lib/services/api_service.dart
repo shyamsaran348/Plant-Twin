@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // for kIsWeb
 import 'package:path/path.dart' as path;
 import '../models/user.dart';
+import '../models/user_profile.dart';
 import '../models/plant.dart';
 import '../models/reminder.dart';
 
@@ -91,6 +92,29 @@ class ApiService {
       return UserProfile.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to fetch profile');
+    }
+  }
+
+  Future<UserProfile> updateProfile(String fullName, String gardenType) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/me'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'full_name': fullName,
+        'garden_type': gardenType,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return UserProfile.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to update profile: ${response.body}');
     }
   }
 
@@ -318,5 +342,21 @@ class ApiService {
   // --- Helper to get image URL ---
   String getImageUrl(String relativePath) {
     return "$baseUrl/$relativePath";
+  }
+  Future<void> updateGrowthStage(int plantId, String stage) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/plants/$plantId/stage'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+      body: {'stage': stage},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update stage: ${response.body}');
+    }
   }
 }

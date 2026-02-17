@@ -99,3 +99,68 @@ def update_location(
     except Exception as e:
         print(f"Error updating location: {e}")
         raise HTTPException(status_code=500, detail="Failed to update location")
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    garden_type: Optional[str] = None
+
+@router.put("/me", response_model=UserProfile)
+def update_user_profile(
+    user_update: UserUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name
+    if user_update.garden_type is not None:
+        current_user.garden_type = user_update.garden_type
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    # Re-fetch stats logic (reused from get_current_user_profile)
+    # Ideally refactor this into a service, but for now duplicate for speed/safety
+    plants = db.query(Plant).filter(Plant.user_id == current_user.id).all()
+    total = len(plants)
+    flowering = 0
+    vegetables = 0
+    herbs = 0
+    total_health = 0.0
+    
+    for plant in plants:
+        species_lower = plant.species.lower()
+        if any(x in species_lower for x in ['rose', 'lily', 'flower', 'orchid', 'jasmine']):
+            flowering += 1
+        elif any(x in species_lower for x in ['tomato', 'pepper', 'spinach', 'carrot', 'potato']):
+            vegetables += 1
+        elif any(x in species_lower for x in ['basil', 'mint', 'thyme', 'oregano', 'tulsi']):
+            herbs += 1
+        else:
+            flowering += 1 
+
+        if plant.plant_state:
+            total_health += plant.plant_state.health_score
+            
+    avg_health = total_health / total if total > 0 else 100.0
+    
+    garden_status = "Good"
+    if avg_health < 50:
+        garden_status = "Needs Attention"
+    elif avg_health < 80:
+        garden_status = "Average"
+        
+    stats = GardenStats(
+        total_plants=total,
+        flowering=flowering,
+        vegetables=vegetables,
+        herbs=herbs,
+        streak_days=12,
+        garden_status=garden_status
+    )
+    
+    return UserProfile(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        garden_type=current_user.garden_type,
+        garden_stats=stats
+    )

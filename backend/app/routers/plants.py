@@ -251,3 +251,21 @@ def update_environment(
         "health_score": plant.plant_state.health_score,
         "heat_stress": plant.plant_state.heat_stress
     }
+@router.post("/{plant_id}/stage")
+def update_stage(
+    plant_id: int, 
+    stage: str = Form(...), 
+    db: Session = Depends(database.get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    plant = db.query(Plant).options(joinedload(Plant.plant_state)).filter(Plant.id == plant_id, Plant.user_id == current_user.id).first()
+    if not plant:
+        raise HTTPException(status_code=404, detail="Plant not found")
+        
+    if plant.plant_state:
+        plant.plant_state.growth_stage = stage
+        db.add(plant.plant_state)
+        db.commit()
+        db.refresh(plant.plant_state)
+        
+    return {"message": "Growth stage updated", "new_stage": plant.plant_state.growth_stage}
