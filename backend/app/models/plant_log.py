@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, Float, ForeignKey, DateTime, String
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -10,6 +10,7 @@ class PlantLog(Base):
     plant_id = Column(Integer, ForeignKey("plants.id"))
     height = Column(Float) # in cm
     health_score = Column(Float)
+    image_path = Column(String, nullable=True) # New field for Gallery
     recorded_at = Column(DateTime, default=datetime.utcnow)
     
     plant = relationship("app.models.plant.Plant", back_populates="logs")

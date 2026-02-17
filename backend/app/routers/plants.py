@@ -123,9 +123,10 @@ def get_plant(plant_id: int, db: Session = Depends(database.get_db), current_use
     return plant
 
 @router.post("/{plant_id}/log", response_model=PlantLogOut)
-def log_growth(
+async def log_growth(
     plant_id: int, 
-    log_data: PlantLogCreate, 
+    height: float = Form(...),
+    file: UploadFile = File(None), # Optional image
     db: Session = Depends(database.get_db), 
     current_user: User = Depends(get_current_user)
 ):
@@ -135,10 +136,26 @@ def log_growth(
     
     current_health = plant.plant_state.health_score if plant.plant_state else 100.0
     
+    image_path = None
+    if file:
+        UPLOAD_DIR = "uploads"
+        if not os.path.exists(UPLOAD_DIR):
+            os.makedirs(UPLOAD_DIR)
+        
+        file_extension = file.filename.split(".")[-1]
+        filename = f"log_{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        image_path = f"uploads/{filename}"
+
     new_log = PlantLog(
         plant_id=plant_id,
-        height=log_data.height,
-        health_score=current_health
+        height=height,
+        health_score=current_health,
+        image_path=image_path
     )
     db.add(new_log)
     db.commit()

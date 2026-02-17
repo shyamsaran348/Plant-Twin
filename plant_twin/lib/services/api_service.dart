@@ -184,21 +184,30 @@ class ApiService {
     }
   }
 
-  Future<void> addPlantLog(int plantId, double height) async {
+  Future<void> addPlantLog(int plantId, double height, XFile? imageFile) async {
     final token = await _getToken();
     if (token == null) throw Exception('Not authenticated');
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/plants/$plantId/log'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'height': height}),
-    );
+    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/plants/$plantId/log'));
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['height'] = height.toString();
+
+    if (imageFile != null) {
+      final bytes = await imageFile.readAsBytes();
+      var multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: imageFile.name,
+      );
+      request.files.add(multipartFile);
+    }
+
+    var response = await request.send();
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to add log');
+      final respStr = await response.stream.bytesToString();
+      throw Exception('Failed to add log: $respStr');
     }
   }
 

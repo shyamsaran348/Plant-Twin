@@ -110,32 +110,77 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
 
   void _logGrowth() {
     final controller = TextEditingController();
+    XFile? selectedImage;
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Log Growth"),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: "Height (cm)", suffixText: "cm"),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final height = double.parse(controller.text);
-                await _apiService.addPlantLog(widget.plantId, height);
-                Navigator.pop(context);
-                _refreshPlant();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Growth logged!")));
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: $e")));
-              }
-            },
-            child: const Text("Save"),
-          ),
-        ],
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Log Growth"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Height (cm)", suffixText: "cm"),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () async {
+                    final ImagePicker picker = ImagePicker();
+                    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      setState(() => selectedImage = image);
+                    }
+                  },
+                  child: Container(
+                    height: 100,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: kIsWeb 
+                                ? Image.network(selectedImage!.path, fit: BoxFit.cover)
+                                : Image.asset(selectedImage!.path, fit: BoxFit.cover, errorBuilder: (c,e,s) => const Icon(Icons.image)), // mobile logic differs but basic fallback
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo, color: Colors.grey),
+                              SizedBox(height: 4),
+                              Text("Add Photo (Optional)", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final height = double.parse(controller.text);
+                    await _apiService.addPlantLog(widget.plantId, height, selectedImage);
+                    Navigator.pop(context);
+                    _refreshPlant();
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Growth logged!")));
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: $e")));
+                  }
+                },
+                child: const Text("Save"),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -475,7 +520,69 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                       
                       const SizedBox(height: 30),
 
-                      // 5. Reminders
+                      // 4. Garden Gallery (Growth Logs with Images)
+                      if (logs.isNotEmpty) ...[
+                        _sectionHeader("Garden Gallery", Icons.photo_library, () {}),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 160,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: logs.length,
+                            itemBuilder: (context, index) {
+                              // Reverse order to show newest first
+                              final log = logs[logs.length - 1 - index];
+                              return Container(
+                                width: 130,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                        child: log.imagePath != null
+                                            ? Image.network(
+                                                _apiService.getImageUrl(log.imagePath!),
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                errorBuilder: (c,e,s) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+                                              )
+                                            : Container(
+                                                color: Colors.green.shade50,
+                                                child: Center(
+                                                  child: Text("${log.height}cm", style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold)),
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(DateFormat('MMM dd').format(log.createdAt), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                          Text("${log.height} cm", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                          Text("Health: ${log.healthScore.toInt()}%", style: const TextStyle(fontSize: 10, color: Colors.green)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 30),
+
+                      // 5. Disease History Gallery
                       _sectionHeader("Upcoming Reminders", Icons.alarm, () => _addReminder()),
                       if (_reminders.isEmpty)
                         const Padding(
