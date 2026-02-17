@@ -167,16 +167,30 @@ def water_plant(plant_id: int, db: Session = Depends(database.get_db), current_u
         raise HTTPException(status_code=404, detail="Plant not found")
         
     if plant.plant_state:
-        # Novelty: Simulate biological recovery
-        plant.plant_state = TwinEngine.simulate_recovery(plant.plant_state, water_added=True)
-        # Recalculate based on new stress levels
-        plant.plant_state.health_score = TwinEngine.calculate_health_score(plant.plant_state)
+        current_stress = plant.plant_state.water_stress
+        message = "Plant watered."
         
+        # Smart Logic: Check for Overwatering
+        if current_stress < 0.2: # Less than 20% stress means it's already hydrated
+            # Penalty!
+            plant.plant_state.health_score = max(0, plant.plant_state.health_score - 2)
+            plant.plant_state.water_stress = 0.0 # Still sets to 0
+            message = "Careful! Don't overwater. Health penalty applied (-2)."
+        elif current_stress > 0.5: # Dry
+            # Bonus!
+            plant.plant_state.health_score = min(100, plant.plant_state.health_score + 5)
+            plant.plant_state.water_stress = 0.0
+            message = "Great job! Plant refreshed. Health bonus applied (+5)."
+        else:
+            # Normal watering
+            plant.plant_state.water_stress = 0.0
+            message = "Plant watered successfully."
+
         db.add(plant.plant_state)
         db.commit()
         db.refresh(plant.plant_state)
         
-    return {"message": "Plant watered", "new_health": plant.plant_state.health_score}
+    return {"message": message, "new_health": plant.plant_state.health_score}
 
 from pydantic import BaseModel
 

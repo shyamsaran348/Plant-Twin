@@ -6,12 +6,16 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    full_name: Optional[str] = None
+    garden_type: Optional[str] = None
 
 class UserLogin(UserBase):
     password: str
 
 class UserOut(UserBase):
     id: int
+    full_name: Optional[str] = None
+    garden_type: Optional[str] = None
     
     class Config:
         from_attributes = True

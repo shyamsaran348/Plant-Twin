@@ -57,17 +57,40 @@ class ApiService {
     }
   }
 
-  Future<User> register(String email, String password) async {
+  Future<User> register(String email, String password, String fullName, String gardenType) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode({
+        'email': email, 
+        'password': password,
+        'full_name': fullName,
+        'garden_type': gardenType,
+      }),
     );
 
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to register: ${response.body}');
+    }
+  }
+
+  // --- Profile ---
+
+  Future<UserProfile> getUserProfile() async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return UserProfile.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to fetch profile');
     }
   }
 
@@ -144,7 +167,7 @@ class ApiService {
 
   // --- Extended Features ---
 
-  Future<void> waterPlant(int plantId) async {
+  Future<String> waterPlant(int plantId) async {
     final token = await _getToken();
     if (token == null) throw Exception('Not authenticated');
 
@@ -153,7 +176,10 @@ class ApiService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['message'] ?? "Plant watered successfully.";
+    } else {
       throw Exception('Failed to water plant');
     }
   }

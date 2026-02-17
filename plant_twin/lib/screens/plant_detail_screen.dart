@@ -58,11 +58,17 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
 
   void _waterPlant() async {
     try {
-      await _apiService.waterPlant(widget.plantId);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Plant watered! Health updated.")));
+      final message = await _apiService.waterPlant(widget.plantId);
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(message),
+          backgroundColor: message.contains("Careful") ? Colors.orange : Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
       _refreshPlant();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Watering failed: $e")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Watering failed: $e")));
     }
   }
 

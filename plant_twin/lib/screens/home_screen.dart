@@ -15,15 +15,26 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
   late Future<List<Plant>> _plantsFuture;
-
-  // Mock user data (later load from Profile/User API if available)
-  final String userName = "Gardener"; 
-  final String gardenType = "Indoor"; 
+  String userName = "Gardener";
+  String gardenType = "Indoor";
 
   @override
   void initState() {
     super.initState();
     _refreshPlants();
+    _fetchUserProfile();
+  }
+
+  void _fetchUserProfile() async {
+    try {
+      final profile = await _apiService.getUserProfile();
+      setState(() {
+        userName = profile.fullName ?? "Gardener";
+        gardenType = profile.gardenType ?? "Indoor";
+      });
+    } catch (e) {
+      print("Failed to load profile: $e");
+    }
   }
 
   void _refreshPlants() {
